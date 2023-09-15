@@ -16,6 +16,10 @@ ARG TRITON_VERSION=23.05
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 FROM ${BASE_IMAGE}
 
+# Compute capability to compile for. See: https://developer.nvidia.com/cuda-gpus
+ARG NVIDIA_SM=90
+ARG DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         autoconf \
@@ -39,16 +43,36 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
     
-RUN mkdir /tmp/openmpi && \
-    cd /tmp/openmpi && \
-    wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.5.tar.gz && \
-    tar zxf openmpi-4.1.5.tar.gz && \
-    cd openmpi-4.1.5 && \
-    ./configure --enable-orterun-prefix-by-default && \
-    make -j $(nproc) all && \
-    make install && \
-    ldconfig && \
-    rm -rf /tmp/openmpi
+    
+# Install EFA
+RUN curl -O https://efa-installer.amazonaws.com/aws-efa-installer-1.25.1.tar.gz
+RUN tar -xf aws-efa-installer-1.25.1.tar.gz && \
+    cd aws-efa-installer && \
+    ./efa_installer.sh -y -g -d --skip-kmod --skip-limit-conf --no-verify 
+
+# Install NCCL (should be included in base image)
+#RUN git clone https://github.com/NVIDIA/nccl.git && cd nccl && \
+#    make -j src.build CUDA_HOME=/usr/local/cuda
+
+# Install aws-ofi-nccl plugin
+RUN wget https://github.com/aws/aws-ofi-nccl/releases/download/v1.7.2-aws/aws-ofi-nccl-1.7.2-aws.tar.gz
+RUN tar -xf aws-ofi-nccl-1.7.2-aws.tar.gz && \
+    cd aws-ofi-nccl-1.7.2-aws && \
+    ./configure --prefix=/opt/aws-ofi-nccl \
+    --with-mpi=/opt/amazon/openmpi \
+    --with-libfabric=/opt/amazon/efa \
+    --with-cuda=/usr/local/cuda \
+    --enable-platform-aws && \
+    make && make install
+ENV PATH=/opt/amazon/openmpi/bin/:$PATH
+
+# NCCL Tests
+ENV LD_LIBRARY_PATH=/opt/amazon/efa/lib:$LD_LIBRARY_PATH
+RUN export OPAL_PREFIX="" && \
+    git clone https://github.com/NVIDIA/nccl-tests.git && \
+    cd nccl-tests && \
+    make MPI=1 MPI_HOME=/opt/amazon/openmpi NCCL_HOME=/opt/nccl/build CUDA_HOME=/usr/local/cuda
+
 
 RUN pip3 install --no-cache-dir --extra-index-url https://pypi.ngc.nvidia.com regex fire tritonclient[all] && \
     pip3 install --no-cache-dir accelerate transformers huggingface_hub tokenizers SentencePiece sacrebleu datasets tqdm omegaconf rouge_score && \
