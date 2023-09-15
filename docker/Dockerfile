@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG TRITON_VERSION=23.07
+ARG TRITON_VERSION=23.05
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 FROM ${BASE_IMAGE}
 
@@ -38,9 +38,19 @@ RUN apt-get update && \
         zsh && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+    
+RUN mkdir /tmp/openmpi && \
+    cd /tmp/openmpi && \
+    wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.5.tar.gz && \
+    tar zxf openmpi-4.1.5.tar.gz && \
+    cd openmpi-4.1.5 && \
+    ./configure --enable-orterun-prefix-by-default && \
+    make -j $(nproc) all && \
+    make install && \
+    ldconfig && \
+    rm -rf /tmp/openmpi
 
-RUN pip3 install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cu118 torch==2.0.1+cu118 && \
-    pip3 install --no-cache-dir --extra-index-url https://pypi.ngc.nvidia.com regex fire tritonclient[all] && \
+RUN pip3 install --no-cache-dir --extra-index-url https://pypi.ngc.nvidia.com regex fire tritonclient[all] && \
     pip3 install --no-cache-dir accelerate transformers huggingface_hub tokenizers SentencePiece sacrebleu datasets tqdm omegaconf rouge_score && \
     pip3 install --no-cache-dir cmake==3.24.3
 
