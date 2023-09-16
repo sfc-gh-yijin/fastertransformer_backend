@@ -39,9 +39,7 @@ RUN apt-get update && \
         unzip \
         zstd \
         zip \
-        zsh && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+        zsh
     
 RUN apt-get install -y libaio-dev pdsh tmux bwm-ng net-tools sed curl libhwloc-dev
 RUN pip install --upgrade pip
