@@ -43,6 +43,8 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
     
+RUN apt-get install -y libaio-dev pdsh tmux bwm-ng net-tools sed curl libhwloc-dev
+RUN pip install --upgrade pip
     
 # Install EFA
 RUN curl -O https://efa-installer.amazonaws.com/aws-efa-installer-1.25.1.tar.gz
