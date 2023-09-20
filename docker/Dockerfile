@@ -43,36 +43,10 @@ RUN apt-get update && \
     
 RUN apt-get install -y libaio-dev pdsh tmux bwm-ng net-tools sed curl libhwloc-dev
 RUN pip install --upgrade pip
-    
-# Install EFA
-RUN curl -O https://efa-installer.amazonaws.com/aws-efa-installer-1.25.1.tar.gz
-RUN tar -xf aws-efa-installer-1.25.1.tar.gz && \
-    cd aws-efa-installer && \
-    ./efa_installer.sh -y -g -d --skip-kmod --skip-limit-conf --no-verify 
 
 # Install NCCL (should be included in base image)
-#RUN git clone https://github.com/NVIDIA/nccl.git && cd nccl && \
-#    make -j src.build CUDA_HOME=/usr/local/cuda
-
-# Install aws-ofi-nccl plugin
-RUN wget https://github.com/aws/aws-ofi-nccl/releases/download/v1.7.2-aws/aws-ofi-nccl-1.7.2-aws.tar.gz
-RUN tar -xf aws-ofi-nccl-1.7.2-aws.tar.gz && \
-    cd aws-ofi-nccl-1.7.2-aws && \
-    ./configure --prefix=/opt/aws-ofi-nccl \
-    --with-mpi=/opt/amazon/openmpi \
-    --with-libfabric=/opt/amazon/efa \
-    --with-cuda=/usr/local/cuda \
-    --enable-platform-aws && \
-    make && make install
-ENV PATH=/opt/amazon/openmpi/bin/:$PATH
-
-# NCCL Tests
-ENV LD_LIBRARY_PATH=/opt/amazon/efa/lib:$LD_LIBRARY_PATH
-RUN export OPAL_PREFIX="" && \
-    git clone https://github.com/NVIDIA/nccl-tests.git && \
-    cd nccl-tests && \
-    make MPI=1 MPI_HOME=/opt/amazon/openmpi NCCL_HOME=/opt/nccl/build CUDA_HOME=/usr/local/cuda
-
+RUN git clone https://github.com/NVIDIA/nccl.git && cd nccl && \
+    make -j src.build CUDA_HOME=/usr/local/cuda
 
 RUN pip3 install --no-cache-dir --extra-index-url https://pypi.ngc.nvidia.com regex fire tritonclient[all] && \
     pip3 install --no-cache-dir accelerate transformers huggingface_hub tokenizers SentencePiece sacrebleu datasets tqdm omegaconf rouge_score && \
